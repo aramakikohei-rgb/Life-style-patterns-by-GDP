@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GDP Lifestyle Explorer</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Compact Navbar -->
+    <header class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <h1>GDP Lifestyle Explorer</h1>
+            </div>
+            <div class="navbar-search">
+                <input type="text" id="country-search" placeholder="Search countries..." aria-label="Search countries">
+                <div id="search-results" class="search-dropdown" role="listbox"></div>
+            </div>
+            <button class="filter-toggle" id="filter-toggle" aria-label="Toggle filters">
+                <span class="filter-icon">⚙️</span>
+                <span class="filter-text">Filters</span>
+                <span class="filter-badge" id="filter-badge">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Full-Screen Map View -->
+    <main class="map-view">
+        <div id="world-map" class="map-container-fullscreen"></div>
+
+        <!-- Enhanced Tooltip -->
+        <div id="tooltip" class="enhanced-tooltip"></div>
+
+        <!-- Floating Legend -->
+        <div class="floating-legend">
+            <h3>GDP per Capita (USD)</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #FEF3C7;"></div>
+                    <span>&lt; $5K</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #FCD34D;"></div>
+                    <span>$5K - $15K</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #F59E0B;"></div>
+                    <span>$15K - $30K</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #DC2626;"></div>
+                    <span>&gt; $30K</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Panel Sidebar -->
+        <aside id="filter-panel" class="filter-sidebar">
+            <div class="filter-header">
+                <h2>Filters</h2>
+                <button class="filter-close" id="filter-close" aria-label="Close filters">✕</button>
+            </div>
+
+            <div class="filter-content">
+                <!-- GDP Range Filter -->
+                <div class="filter-section">
+                    <h3>GDP per Capita</h3>
+                    <div class="filter-range">
+                        <div class="range-inputs">
+                            <input type="number" id="gdp-min" value="0" min="0" max="150000" step="1000">
+                            <span>to</span>
+                            <input type="number" id="gdp-max" value="150000" min="0" max="150000" step="1000">
+                        </div>
+                        <input type="range" id="gdp-range-min" min="0" max="150000" value="0" step="1000">
+                        <input type="range" id="gdp-range-max" min="0" max="150000" value="150000" step="1000">
+                    </div>
+                </div>
+
+                <!-- Population Range Filter -->
+                <div class="filter-section">
+                    <h3>Population</h3>
+                    <div class="filter-range">
+                        <div class="range-inputs">
+                            <input type="number" id="pop-min" value="0" min="0" max="1500000000" step="1000000">
+                            <span>to</span>
+                            <input type="number" id="pop-max" value="1500000000" min="0" max="1500000000" step="1000000">
+                        </div>
+                        <input type="range" id="pop-range-min" min="0" max="1500000000" value="0" step="10000000">
+                        <input type="range" id="pop-range-max" min="0" max="1500000000" value="1500000000" step="10000000">
+                    </div>
+                </div>
+
+                <!-- Region Filter -->
+                <div class="filter-section">
+                    <h3>Regions</h3>
+                    <div class="filter-checkboxes">
+                        <label><input type="checkbox" id="region-africa" value="Africa" checked> Africa</label>
+                        <label><input type="checkbox" id="region-asia" value="Asia" checked> Asia</label>
+                        <label><input type="checkbox" id="region-europe" value="Europe" checked> Europe</label>
+                        <label><input type="checkbox" id="region-namerica" value="North America" checked> North America</label>
+                        <label><input type="checkbox" id="region-samerica" value="South America" checked> South America</label>
+                        <label><input type="checkbox" id="region-oceania" value="Oceania" checked> Oceania</label>
+                    </div>
+                </div>
+
+                <!-- Quick Presets -->
+                <div class="filter-section">
+                    <h3>Quick Filters</h3>
+                    <div class="filter-presets">
+                        <button class="preset-btn" id="preset-high">High Income Only</button>
+                        <button class="preset-btn" id="preset-developing">Developing Nations</button>
+                        <button class="preset-btn" id="preset-small">Small Countries</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-footer">
+                <button class="btn-secondary" id="reset-filters">Reset All</button>
+                <button class="btn-primary" id="apply-filters">Apply Filters</button>
+            </div>
+        </aside>
+
+        <!-- Floating Insights Button -->
+        <button class="insights-btn" id="insights-btn" aria-label="View lifestyle insights">
+            <span class="insights-icon">📊</span>
+            <span class="insights-text">View Insights</span>
+        </button>
+    </main>
+
+    <!-- Insights Modal -->
+    <div id="insights-modal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Lifestyle Analysis Across Income Levels</h2>
+                <button class="modal-close" id="modal-close" aria-label="Close modal">✕</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Health & Wellness -->
+                <div class="lifestyle-category">
+                <div class="category-header">
+                    <span class="icon">🏥</span>
+                    <h3>Health & Wellness</h3>
+                </div>
+                <div class="category-content">
+                    <div class="chart-container">
+                        <canvas id="healthChart"></canvas>
+                    </div>
+                    <div class="insights">
+                        <h4>Key Insights</h4>
+                        <ul>
+                            <li><strong>Life Expectancy:</strong> Increases significantly with GDP, from 65 years in low-income to 80+ years in high-income countries</li>
+                            <li><strong>Healthcare Access:</strong> High-income countries have near-universal healthcare coverage (95%+) compared to 50-60% in low-income nations</li>
+                            <li><strong>Nutrition:</strong> Dietary diversity and quality improve with income, though high-income countries face obesity challenges</li>
+                            <li><strong>Fitness Trends:</strong> Gym memberships and organized sports participation correlate strongly with GDP levels</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Education & Technology -->
+            <div class="lifestyle-category">
+                <div class="category-header">
+                    <span class="icon">📚</span>
+                    <h3>Education & Technology</h3>
+                </div>
+                <div class="category-content">
+                    <div class="chart-container">
+                        <canvas id="educationChart"></canvas>
+                    </div>
+                    <div class="insights">
+                        <h4>Key Insights</h4>
+                        <ul>
+                            <li><strong>Literacy Rates:</strong> Nearly 100% in high-income vs. 60-75% in low-income countries</li>
+                            <li><strong>Internet Penetration:</strong> 90%+ in wealthy nations compared to 20-40% in low-income regions</li>
+                            <li><strong>Digital Device Ownership:</strong> Smartphone ownership reaches 85% in high-income countries vs. 35% in low-income areas</li>
+                            <li><strong>Higher Education:</strong> University enrollment rates are 3-4x higher in wealthy nations</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Work & Employment -->
+            <div class="lifestyle-category">
+                <div class="category-header">
+                    <span class="icon">💼</span>
+                    <h3>Work & Employment</h3>
+                </div>
+                <div class="category-content">
+                    <div class="chart-container">
+                        <canvas id="workChart"></canvas>
+                    </div>
+                    <div class="insights">
+                        <h4>Key Insights</h4>
+                        <ul>
+                            <li><strong>Working Hours:</strong> Paradoxically, lower-income countries often have longer average work weeks (50+ hours vs. 35-40 hours)</li>
+                            <li><strong>Sector Distribution:</strong> High-income: 70%+ services, Low-income: 50%+ agriculture</li>
+                            <li><strong>Remote Work:</strong> 30-40% of high-income workers have remote options vs. <5% in low-income countries</li>
+                            <li><strong>Job Security:</strong> Formal employment contracts more common in wealthy nations (80% vs. 30%)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Consumer Behavior -->
+            <div class="lifestyle-category">
+                <div class="category-header">
+                    <span class="icon">🛍️</span>
+                    <h3>Consumer Behavior</h3>
+                </div>
+                <div class="category-content">
+                    <div class="chart-container">
+                        <canvas id="consumerChart"></canvas>
+                    </div>
+                    <div class="insights">
+                        <h4>Key Insights</h4>
+                        <ul>
+                            <li><strong>Spending Patterns:</strong> Low-income: 60-70% on necessities; High-income: 30-40% on necessities, more discretionary spending</li>
+                            <li><strong>Online Shopping:</strong> E-commerce adoption reaches 75% in wealthy nations vs. 15-20% in low-income countries</li>
+                            <li><strong>Brand Consciousness:</strong> Increases with income; luxury goods market concentrated in high-income nations</li>
+                            <li><strong>Sustainability:</strong> Environmental awareness and willingness to pay premium for eco-friendly products higher in wealthy countries</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Housing & Transportation -->
+            <div class="lifestyle-category">
+                <div class="category-header">
+                    <span class="icon">🏠</span>
+                    <h3>Housing & Transportation</h3>
+                </div>
+                <div class="category-content">
+                    <div class="chart-container">
+                        <canvas id="housingChart"></canvas>
+                    </div>
+                    <div class="insights">
+                        <h4>Key Insights</h4>
+                        <ul>
+                            <li><strong>Home Ownership:</strong> Varies widely (50-80%) but quality and size increase dramatically with GDP</li>
+                            <li><strong>Living Space:</strong> High-income: 40-50 sqm/person; Low-income: 10-15 sqm/person</li>
+                            <li><strong>Transportation:</strong> Car ownership: 60-80% in wealthy nations vs. 5-15% in low-income countries</li>
+                            <li><strong>Urbanization:</strong> Higher GDP correlates with greater urban concentration (80% vs. 30%)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leisure & Entertainment -->
+            <div class="lifestyle-category">
+                <div class="category-header">
+                    <span class="icon">🎭</span>
+                    <h3>Leisure & Entertainment</h3>
+                </div>
+                <div class="category-content">
+                    <div class="chart-container">
+                        <canvas id="leisureChart"></canvas>
+                    </div>
+                    <div class="insights">
+                        <h4>Key Insights</h4>
+                        <ul>
+                            <li><strong>Vacation Frequency:</strong> High-income workers take 2-3 weeks annual vacation vs. limited or no paid leave in low-income countries</li>
+                            <li><strong>Entertainment Spending:</strong> 8-12% of income in wealthy nations vs. 2-4% in low-income regions</li>
+                            <li><strong>Dining Out:</strong> Weekly frequency in high-income countries vs. special occasions only in low-income areas</li>
+                            <li><strong>Cultural Activities:</strong> Museum visits, concerts, theater 5-10x more frequent in wealthy nations</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social & Family -->
+            <div class="lifestyle-category">
+                <div class="category-header">
+                    <span class="icon">👨‍👩‍👧‍👦</span>
+                    <h3>Social & Family</h3>
+                </div>
+                <div class="category-content">
+                    <div class="chart-container">
+                        <canvas id="socialChart"></canvas>
+                    </div>
+                    <div class="insights">
+                        <h4>Key Insights</h4>
+                        <ul>
+                            <li><strong>Family Structure:</strong> Smaller families in high-income (1-2 children) vs. larger in low-income countries (3-5 children)</li>
+                            <li><strong>Household Composition:</strong> Nuclear families dominate in wealthy nations; extended families more common in low-income regions</li>
+                            <li><strong>Social Networks:</strong> Digital social connections prevalent in high-income; community-based networks stronger in low-income areas</li>
+                            <li><strong>Volunteerism:</strong> Higher civic engagement and volunteer rates in wealthy nations (30-40% vs. 10-15%)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Statistics -->
+            <div class="summary-section">
+                <h3>Summary: GDP's Impact on Lifestyle</h3>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <h4>Low Income (&lt;$5,000)</h4>
+                        <ul>
+                            <li>Focus on survival and basic needs</li>
+                            <li>Limited access to healthcare and education</li>
+                            <li>Agriculture-based employment</li>
+                            <li>Strong community ties</li>
+                            <li>Low digital connectivity</li>
+                        </ul>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Lower-Middle ($5K-$15K)</h4>
+                        <ul>
+                            <li>Transition to manufacturing/services</li>
+                            <li>Improving education access</li>
+                            <li>Growing urbanization</li>
+                            <li>Emerging consumer class</li>
+                            <li>Increasing technology adoption</li>
+                        </ul>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Upper-Middle ($15K-$30K)</h4>
+                        <ul>
+                            <li>Service-sector dominance</li>
+                            <li>Strong education systems</li>
+                            <li>Rising discretionary spending</li>
+                            <li>High internet penetration</li>
+                            <li>Improved work-life balance</li>
+                        </ul>
+                    </div>
+                    <div class="summary-card">
+                        <h4>High Income (&gt;$30,000)</h4>
+                        <ul>
+                            <li>Knowledge-based economies</li>
+                            <li>Universal healthcare and education</li>
+                            <li>High quality of life metrics</li>
+                            <li>Advanced technology integration</li>
+                            <li>Focus on sustainability and wellness</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="minimal-footer">
+        <p>Data: World Bank, IMF, UN (2023-2024) | GDP Lifestyle Explorer</p>
+    </footer>
+
+    <script src="data.js"></script>
+    <script src="map.js"></script>
+    <script src="charts.js"></script>
+    <script src="search.js"></script>
+    <script src="filters.js"></script>
+    <script src="modal.js"></script>
+</body>
+</html>

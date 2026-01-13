@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Check GeoJSON Countries</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .results {
+            margin-top: 20px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .country-item {
+            padding: 8px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .matched {
+            background: #d4edda;
+            color: #155724;
+        }
+        .unmatched {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .search {
+            margin: 20px 0;
+        }
+        input {
+            padding: 10px;
+            width: 300px;
+            font-size: 16px;
+            border: 2px solid #3498db;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>GeoJSON Country Names Debug Tool</h1>
+    <p>This tool checks which country names are in the GeoJSON data vs. our data.js file</p>
+
+    <div class="search">
+        <input type="text" id="searchInput" placeholder="Search for a country..." />
+    </div>
+
+    <div class="results" id="results">
+        <p>Loading GeoJSON data...</p>
+    </div>
+
+    <script src="data.js"></script>
+    <script>
+        const worldUrl = 'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson';
+
+        d3.json(worldUrl).then(function(world) {
+            const resultsDiv = document.getElementById('results');
+            const searchInput = document.getElementById('searchInput');
+
+            let allCountries = world.features.map(f => {
+                const geoName = f.properties.name;
+                const hasData = !!countryData[geoName];
+                return {
+                    geoName: geoName,
+                    hasData: hasData,
+                    dataName: hasData ? countryData[geoName].name : 'N/A',
+                    gdp: hasData ? countryData[geoName].gdpPerCapita : 'N/A'
+                };
+            });
+
+            function displayResults(countries) {
+                const matched = countries.filter(c => c.hasData);
+                const unmatched = countries.filter(c => !c.hasData);
+
+                let html = `
+                    <h2>Summary</h2>
+                    <p><strong>Total countries in GeoJSON:</strong> ${countries.length}</p>
+                    <p><strong>Matched with data:</strong> ${matched.length}</p>
+                    <p><strong>Unmatched (no data):</strong> ${unmatched.length}</p>
+
+                    <h2>Matched Countries (${matched.length})</h2>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                `;
+
+                matched.forEach(c => {
+                    html += `<div class="country-item matched">
+                        <strong>${c.geoName}</strong> → ${c.dataName} (GDP: $${c.gdp})
+                    </div>`;
+                });
+
+                html += `
+                    </div>
+                    <h2>Unmatched Countries (${unmatched.length})</h2>
+                    <div style="max-height: 400px; overflow-y: auto;">
+                `;
+
+                unmatched.forEach(c => {
+                    html += `<div class="country-item unmatched">
+                        <strong>${c.geoName}</strong> - No data available
+                    </div>`;
+                });
+
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+            }
+
+            displayResults(allCountries);
+
+            // Search functionality
+            searchInput.addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                const filtered = allCountries.filter(c =>
+                    c.geoName.toLowerCase().includes(searchTerm) ||
+                    c.dataName.toLowerCase().includes(searchTerm)
+                );
+                displayResults(filtered);
+            });
+
+            // Check specifically for Singapore
+            const singaporeInGeo = world.features.find(f =>
+                f.properties.name.toLowerCase().includes('singapore')
+            );
+
+            console.log('Singapore in GeoJSON:', singaporeInGeo);
+            console.log('Singapore in our data:', countryData['Singapore']);
+
+            if (singaporeInGeo) {
+                console.log('GeoJSON name for Singapore:', singaporeInGeo.properties.name);
+            }
+
+        }).catch(function(error) {
+            console.error('Error loading map data:', error);
+            document.getElementById('results').innerHTML =
+                '<p style="color: red;">Error loading GeoJSON data. Check console.</p>';
+        });
+    </script>
+</body>
+</html>
